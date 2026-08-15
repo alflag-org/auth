@@ -1,0 +1,15 @@
+allowBuilds:
+  esbuild: true
+  workerd: true
+minimumReleaseAge: 1440
+minimumReleaseAgeIgnoreMissingTime: false
+trustPolicy: no-downgrade
+blockExoticSubdeps: true
+trustLockfile: false
+auditConfig:
+  ignoreGhsas:
+    - GHSA-p2fr-6hmx-4528
+minimumReleaseAgeExclude:
+  - '@cloudflare/workers-types@5.20260814.1'
+patchedDependencies:
+  '@better-auth/oauth-provider@1.6.28': patches/@better-auth__oauth-provider@1.6.28.patch

@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["import", "node", "promise", "vitest"],
+  "options": {
+    "typeAware": true
+  },
+  "rules": {
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "vitest/no-focused-tests": "error",
+    "vitest/no-disabled-tests": "error",
+    "vitest/no-identical-title": "error",
+    "vitest/no-standalone-expect": "error",
+    "vitest/valid-expect": "off",
+    "vitest/no-conditional-expect": "off",
+    "vitest/expect-expect": "off",
+    "vitest/require-to-throw-message": "off"
+  }
+}

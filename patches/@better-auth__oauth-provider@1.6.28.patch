@@ -1,0 +1,7 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 0dba7b53799e4f663853b1f5bb8c89ab1c7eccef..e472152890d13608bebde7792b91081fa2d8b858 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -4061,1 +4061,1 @@
+-	const exp = Math.floor(issuedAt / 1e3) + (opts.codeExpiresIn ?? 600);
++	const exp = Math.floor(issuedAt / 1e3) + (opts.loginCodeExpiresIn ?? opts.codeExpiresIn ?? 600);

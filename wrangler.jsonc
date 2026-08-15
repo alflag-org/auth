@@ -1,0 +1,71 @@
+{
+  "name": "example-sso",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "invocation_logs": false
+    }
+  },
+  "ratelimits": [
+    {
+      "name": "GOOGLE_LOGIN_RATE_LIMITER",
+      "namespace_id": "00000000000000000000000000000000",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    },
+    {
+      "name": "OAUTH_AUTHORIZE_RATE_LIMITER",
+      "namespace_id": "00000000000000000000000000000000",
+      "simple": {
+        "limit": 60,
+        "period": 60
+      }
+    },
+    {
+      "name": "OAUTH_TOKEN_RATE_LIMITER",
+      "namespace_id": "00000000000000000000000000000000",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    },
+    {
+      "name": "OAUTH_USERINFO_RATE_LIMITER",
+      "namespace_id": "00000000000000000000000000000000",
+      "simple": {
+        "limit": 60,
+        "period": 60
+      }
+    },
+    {
+      "name": "OAUTH_END_SESSION_RATE_LIMITER",
+      "namespace_id": "00000000000000000000000000000000",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    }
+  ],
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+  "secrets": {
+    "required": ["BETTER_AUTH_SECRETS", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "ALLOWED_GOOGLE_DOMAIN"]
+  },
+  "vars": {
+    "AUTH_ISSUER": "https://auth.example.invalid"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "example-sso",
+      "database_id": "00000000000000000000000000000000",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

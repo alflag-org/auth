@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      AUTH_ISSUER: https://auth.example.invalid
+      BETTER_AUTH_SECRETS: 1:ci-schema-only-secret-1234567890abcdef1234567890abcdef
+      GOOGLE_CLIENT_ID: ci-google-client
+      GOOGLE_CLIENT_SECRET: ci-google-secret
+      ALLOWED_GOOGLE_DOMAIN: example.com
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.21.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit:prod
+      - run: pnpm audit:signatures
+      - run: pnpm supply-chain:check
+      - run: pnpm db:migrate:local
+      - run: pnpm db:check:local
+      - run: pnpm migration:check
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm types:check
+      - run: pnpm test
+      - run: pnpm oss:check
+      - run: pnpm deploy:preflight:negative
+      - run: pnpm operator:check
+      - run: pnpm build
