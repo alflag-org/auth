@@ -4,6 +4,26 @@ This repository contains a Cloudflare Worker that signs users in through Google 
 
 Google Workspace is the only upstream identity provider. This service is not Cloudflare Access. It does not store Google passwords or MFA credentials, and it never authenticates a user from an email suffix alone.
 
+## Local development
+
+Use [mise](https://mise.jdx.dev/) for the pinned Node.js and pnpm toolchain. `mise.toml` declares Node.js `24.19.0` and pnpm `11.21.0`; the committed `mise.lock` records the resolved toolchain and download checksums.
+
+From the repository root, run:
+
+```sh
+mise trust
+mise install --locked node@24.19.0 npm:pnpm@11.21.0
+mise run bootstrap
+mise run migrate-local
+mise run dev
+```
+
+`mise run bootstrap` installs the frozen dependency set and creates `.dev.vars` from `.dev.vars.example` when the file does not exist. It never overwrites an existing `.dev.vars`. Set `AUTH_ISSUER`, `BETTER_AUTH_SECRETS`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `ALLOWED_GOOGLE_DOMAIN` there for local development. `.dev.vars` is ignored and must not be committed; the example values are fictional.
+
+The local Worker uses D1 and listens on Wrangler’s default development address. Local Google integration tests use a fake upstream and do not contact Google. Use `mise run check` for the standard lint, format, type, and test checks, and `mise run build` for both dry-run Worker bundles.
+
+Keep machine-specific mise overrides in the ignored `mise.local.toml` file.
+
 ## Trust boundary
 
 The Google callback accepts an identity only after checking the Google issuer, RS256 signature, audience, expiration, nonce, `email_verified`, `sub`, and exact `hd` claim. A missing or different `hd` fails closed. The public OIDC `sub` is the local user ID, not Google’s `sub`. Email is not an identity key, and implicit email account linking is disabled.
@@ -38,30 +58,9 @@ The local `sub` issued with `openid` is the only application identity key. `name
 
 The provider signs ID tokens with ES256. Signing keys rotate every 90 days, and an old public key remains available for a 30-day grace period.
 
-## Local setup
+## Database migrations
 
-Use the pinned toolchain:
-
-- Node.js `24.19.0`
-- pnpm `11.21.0`
-
-Install dependencies and create local variables:
-
-```sh
-pnpm install --frozen-lockfile
-cp .dev.vars.example .dev.vars
-```
-
-`.dev.vars` is ignored and must not be committed. It defines `AUTH_ISSUER`, `BETTER_AUTH_SECRETS`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `ALLOWED_GOOGLE_DOMAIN`. The example values are fictional. Local Google integration tests use a fake upstream and do not contact Google.
-
-Apply the checked-in Better Auth migrations to local D1 and start the Worker:
-
-```sh
-pnpm db:migrate:local
-pnpm dev
-```
-
-The repository has one `0001_initial.sql` migration. It contains the Better Auth schema, authorization-admission capacity tracking, JWK revocation state, Google continuation linkage, and the required expiry and admission indexes. `pnpm generate:migration` rebuilds it from Better Auth's generated schema and the project schema composer; `pnpm migration:check` rejects drift or additional SQL migration files. Review the initial schema before applying it to shared D1. After it has been applied, keep it immutable and add a new migration for later schema changes.
+The repository has one `0001_initial.sql` migration. It contains the Better Auth schema, authorization-admission capacity tracking, JWK revocation state, Google continuation linkage, and the required expiry and admission indexes. `mise run generate-migration` rebuilds it from Better Auth's generated schema and the project schema composer; `mise run migration-check` rejects drift or additional SQL migration files. Review the initial schema before applying it to shared D1. After it has been applied, keep it immutable and add a new migration for later schema changes.
 
 ## Client registration
 
@@ -72,7 +71,7 @@ Before any command, supply `BETTER_AUTH_SECRETS`, `GOOGLE_CLIENT_ID`, `GOOGLE_CL
 For local D1:
 
 ```sh
-pnpm client:create \
+mise run client-create -- \
   --name "Example App" \
   --redirect-uri "https://app.example.invalid/callback" \
   --post-logout-redirect-uri "https://app.example.invalid/signed-out"
@@ -83,7 +82,7 @@ For remote D1, replace the non-secret target placeholders and include the exact 
 ```sh
 ACCOUNT_ID="<cloudflare-account-id>"
 D1_DATABASE_ID="<d1-database-id>"
-pnpm client:create \
+mise run client-create -- \
   --remote \
   --account-id "$ACCOUNT_ID" \
   --d1-database-id "$D1_DATABASE_ID" \
@@ -126,13 +125,13 @@ For remote commands below, use the same non-secret `ACCOUNT_ID` and `D1_DATABASE
 Run the operator command locally:
 
 ```sh
-pnpm jwk:rotate --confirm=ROTATE-JWK
+mise run jwk-rotate -- --confirm=ROTATE-JWK
 ```
 
 Run it against remote D1 only with an explicit target and both target-aware confirmations:
 
 ```sh
-pnpm jwk:rotate \
+mise run jwk-rotate -- \
   --remote \
   --account-id "$ACCOUNT_ID" \
   --d1-database-id "$D1_DATABASE_ID" \
@@ -145,7 +144,7 @@ Check the returned `key_id`, the published JWKS, and a real signed token. Keep v
 For an emergency, revoke a retired key. The current signing key cannot be revoked. Local revoke requires the key ID in its confirmation:
 
 ```sh
-pnpm jwk:revoke \
+mise run jwk-revoke -- \
   --key-id "$KEY_ID" \
   --confirm="REVOKE-JWK:$KEY_ID"
 ```
@@ -153,7 +152,7 @@ pnpm jwk:revoke \
 Remote revoke requires the explicit target and both target-aware confirmations:
 
 ```sh
-pnpm jwk:revoke \
+mise run jwk-revoke -- \
   --remote \
   --account-id "$ACCOUNT_ID" \
   --d1-database-id "$D1_DATABASE_ID" \
@@ -169,15 +168,15 @@ Revocation removes the retired key from JWKS and RP-initiated logout validation 
 Remote migration is an explicit operator action against the intended D1 database. Review the migration first, then run:
 
 ```sh
-pnpm exec wrangler d1 migrations apply DB --remote --config wrangler.jsonc
-pnpm deploy:preflight
-pnpm build
+mise exec -- pnpm exec wrangler d1 migrations apply DB --remote --config wrangler.jsonc
+mise run deploy-preflight
+mise run build
 ```
 
-`pnpm build` runs `wrangler deploy --dry-run` for the main Worker and the operator Worker. A real deployment is a separate explicit action:
+`mise run build` runs `wrangler deploy --dry-run` for the main Worker and the operator Worker. A real deployment is a separate explicit action:
 
 ```sh
-pnpm deploy
+mise run deploy
 ```
 
 Do not treat a dry-run as a deployment. The repository does not apply remote migrations or deploy automatically.
@@ -187,25 +186,22 @@ Do not treat a dry-run as a deployment. The repository does not apply remote mig
 Run the pinned install and the checks relevant to the change:
 
 ```sh
-pnpm install --frozen-lockfile
-pnpm audit:prod
-pnpm audit:signatures
-pnpm supply-chain:check
-pnpm db:migrate:local
-pnpm db:check:local
-pnpm lint
-pnpm format:check
-pnpm typecheck
-pnpm test
-pnpm migration:check
-pnpm types:check
-pnpm build
-pnpm deploy:preflight:negative
-pnpm operator:check
-pnpm oss:check
+mise run bootstrap
+mise run audit-prod
+mise run audit-signatures
+mise run supply-chain-check
+mise run migrate-local
+mise run db-check-local
+mise run check
+mise run migration-check
+mise run types-check
+mise run build
+mise run deploy-preflight-negative
+mise run operator-check
+mise run oss-check
 ```
 
-`pnpm lint` includes code and Markdown linting. The tests run with local D1 migrations and fake Google responses.
+`mise run check` includes code and Markdown linting, formatting checks, type checking, and tests. The tests run with isolated local D1 migrations and fake Google responses.
 
 ## Supply-chain note
 

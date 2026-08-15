@@ -1,0 +1,90 @@
+[settings]
+lockfile = true
+
+[tools]
+node = "24.19.0"
+"npm:pnpm" = "11.21.0"
+
+[tasks.bootstrap]
+description = "Install locked dependencies and create local variables"
+run = ["pnpm install --frozen-lockfile", "test -f .dev.vars || cp .dev.vars.example .dev.vars"]
+
+[tasks.check]
+description = "Run the standard checks and test suite"
+run = "pnpm check"
+
+[tasks.test]
+description = "Run the test suite"
+run = "pnpm test"
+
+[tasks.dev]
+description = "Start the local Worker development server"
+run = "pnpm dev"
+
+[tasks.migrate-local]
+description = "Apply D1 migrations to the local database"
+run = "pnpm db:migrate:local"
+
+[tasks.db-check-local]
+description = "Check the local D1 schema and security indexes"
+run = "pnpm db:check:local"
+
+[tasks.migration-check]
+description = "Check that the committed migration matches the generated schema"
+run = "pnpm migration:check"
+
+[tasks.generate-migration]
+description = "Regenerate the checked-in initial migration"
+run = "pnpm generate:migration"
+
+[tasks.types-check]
+description = "Check generated Worker binding types"
+run = "pnpm types:check"
+
+[tasks.build]
+description = "Build both Worker bundles without deploying"
+run = "pnpm build"
+
+[tasks.client-create]
+description = "Create an OAuth client through the operator Worker"
+run = "pnpm client:create"
+
+[tasks.jwk-rotate]
+description = "Rotate the signing key through the operator Worker"
+run = "pnpm jwk:rotate"
+
+[tasks.jwk-revoke]
+description = "Revoke a retired signing key through the operator Worker"
+run = "pnpm jwk:revoke"
+
+[tasks.deploy-preflight]
+description = "Validate production configuration before deployment"
+run = "pnpm deploy:preflight"
+
+[tasks.deploy]
+description = "Deploy the main Worker after production preflight"
+run = "pnpm deploy"
+
+[tasks.audit-prod]
+description = "Audit production dependencies"
+run = "pnpm audit:prod"
+
+[tasks.audit-signatures]
+description = "Verify package signatures"
+run = "pnpm audit:signatures"
+
+[tasks.supply-chain-check]
+description = "Run the repository supply-chain checks"
+run = "pnpm supply-chain:check"
+
+[tasks.deploy-preflight-negative]
+description = "Check that placeholder deployment configuration is rejected"
+run = "pnpm deploy:preflight:negative"
+
+[tasks.operator-check]
+description = "Check operator process and secret-handling safeguards"
+run = "pnpm operator:check"
+
+[tasks.oss-check]
+description = "Check the public repository surface for disallowed content"
+run = "pnpm oss:check"

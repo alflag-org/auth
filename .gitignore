@@ -2,6 +2,10 @@ node_modules/
 .wrangler/
 .dev.vars*
 !.dev.vars.example
+mise.local.toml
+mise.local.lock
+mise.*.local.toml
+mise.*.local.lock
 .env*
 !.env.example
 coverage/
