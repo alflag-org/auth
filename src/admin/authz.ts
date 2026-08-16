@@ -1,6 +1,6 @@
 import type { AuthInstance } from "../auth";
 import { getRuntimeConfig } from "../config";
-import { type AppBindings, MAX_FORM_BODY_BYTES } from "../http";
+import { hasTrustedMutationOrigin, type AppBindings, MAX_FORM_BODY_BYTES } from "../http";
 import { createCSRFToken, CSRF_FIELD, readAdminForm, verifyCSRFToken } from "./csrf";
 
 export type AuthSession = NonNullable<Awaited<ReturnType<AuthInstance["api"]["getSession"]>>>;
@@ -71,7 +71,7 @@ export async function requireAdminMutation(
   auth: AuthInstance,
 ): Promise<AdminMutation | Response> {
   const issuer = getRuntimeConfig(environment).issuer;
-  if (request.headers.get("origin") !== issuer) return forbiddenResponse();
+  if (!hasTrustedMutationOrigin(request, issuer)) return forbiddenResponse();
   const access = await requireAdmin(request, environment, auth);
   if (access instanceof Response) return access;
   const form = await readAdminForm(request);

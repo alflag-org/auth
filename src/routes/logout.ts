@@ -3,9 +3,14 @@ import { createLocalJWKSet, type JSONWebKeySet, type JWTPayload, jwtVerify } fro
 import { getRuntimeConfig } from "../config";
 import { KEY_GRACE_TTL_SECONDS } from "../config";
 import type { AppBindings, AuthResolver } from "../http";
-import { allowRateLimitedRequest, endSessionParameters, hasDuplicateParameter } from "../http";
+import {
+  allowRateLimitedRequest,
+  endSessionParameters,
+  hasDuplicateParameter,
+  hasTrustedMutationOrigin,
+} from "../http";
 import { getSession } from "../admin/authz";
-import { createCSRFToken } from "../admin/csrf";
+import { createCSRFToken, CSRF_FIELD, readAdminForm, verifyCSRFToken } from "../admin/csrf";
 import { signOutPage } from "../ui/pages";
 
 const MAX_RP_LOGOUT_STATE_LENGTH = 256;
@@ -30,8 +35,14 @@ export function registerLogoutRoutes(app: Hono<AppBindings>, resolveAuth: AuthRe
 
   app.post("/sign-out", async (context) => {
     const issuer = getRuntimeConfig(context.env).issuer;
-    if (context.req.header("origin") !== issuer)
-      return context.json({ error: "forbidden" }, 403, { "Cache-Control": "no-store" });
+    const forbidden = () => context.json({ error: "forbidden" }, 403, { "Cache-Control": "no-store" });
+    if (!hasTrustedMutationOrigin(context.req.raw, issuer)) return forbidden();
+    const auth = resolveAuth(context.env);
+    const session = await getSession(context.req.raw, auth);
+    if (session) {
+      const form = await readAdminForm(context.req.raw);
+      if (!form || !(await verifyCSRFToken(form.get(CSRF_FIELD), session.session.id, context.env))) return forbidden();
+    }
     const authRequest = new Request(`${issuer}/sign-out`, {
       method: "POST",
       headers: {
@@ -39,7 +50,7 @@ export function registerLogoutRoutes(app: Hono<AppBindings>, resolveAuth: AuthRe
         ...(context.req.header("cookie") ? { cookie: context.req.header("cookie") as string } : {}),
       },
     });
-    const response = await resolveAuth(context.env).handler(authRequest);
+    const response = await auth.handler(authRequest);
     const result = noStoreResponse(null, { status: 302, headers: { Location: `${issuer}/` } });
     for (const value of response.headers.getSetCookie()) result.headers.append("Set-Cookie", value);
     return result;

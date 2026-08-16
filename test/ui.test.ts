@@ -20,15 +20,23 @@ function csrfToken(html: string): string {
   return token;
 }
 
-function formRequest(path: string, cookie: string, values: Record<string, string>, origin = issuer): Request {
+function formRequest(
+  path: string,
+  cookie: string,
+  values: Record<string, string>,
+  origin = issuer,
+  fetchSite?: string,
+): Request {
   const body = new URLSearchParams(values);
+  const headers: Record<string, string> = {
+    cookie,
+    origin,
+    "content-type": "application/x-www-form-urlencoded",
+  };
+  if (fetchSite) headers["sec-fetch-site"] = fetchSite;
   return new Request(`${issuer}${path}`, {
     method: "POST",
-    headers: {
-      cookie,
-      origin,
-      "content-type": "application/x-www-form-urlencoded",
-    },
+    headers,
     body,
   });
 }
@@ -98,6 +106,22 @@ describe("server-rendered management UI", () => {
     );
     expect(wrongOrigin.status).toBe(403);
 
+    const nullOriginCrossSite = await dispatch(
+      formRequest(
+        "/admin/clients",
+        adminCookie,
+        {
+          csrf_token: initialCSRF,
+          client_name: "Null origin cross-site",
+          redirect_uris: redirectURI,
+          post_logout_redirect_uris: postLogoutURI,
+        },
+        "null",
+        "cross-site",
+      ),
+    );
+    expect(nullOriginCrossSite.status).toBe(403);
+
     const wrongCSRF = await dispatch(
       formRequest("/admin/clients", adminCookie, {
         csrf_token: "invalid",
@@ -120,13 +144,19 @@ describe("server-rendered management UI", () => {
     expect(await invalidURI.text()).toContain("must use HTTPS");
 
     const created = await dispatch(
-      formRequest("/admin/clients", adminCookie, {
-        csrf_token: initialCSRF,
-        client_name: "UI & Client",
-        redirect_uris: redirectURI,
-        post_logout_redirect_uris: postLogoutURI,
-        enable_end_session: "true",
-      }),
+      formRequest(
+        "/admin/clients",
+        adminCookie,
+        {
+          csrf_token: initialCSRF,
+          client_name: "UI & Client",
+          redirect_uris: redirectURI,
+          post_logout_redirect_uris: postLogoutURI,
+          enable_end_session: "true",
+        },
+        "null",
+        "same-origin",
+      ),
     );
     expect(created.status).toBe(201);
     const createdHTML = await created.text();

@@ -43,6 +43,11 @@ export const securityHeaders = {
 
 export const MAX_FORM_BODY_BYTES = 16_384 as const;
 
+export function hasTrustedMutationOrigin(request: Request, issuer: string): boolean {
+  const origin = request.headers.get("origin");
+  return origin === issuer || (origin === "null" && request.headers.get("sec-fetch-site") === "same-origin");
+}
+
 const noStorePaths = new Set([
   "/",
   "/sign-in",

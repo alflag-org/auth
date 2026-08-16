@@ -17,6 +17,12 @@ async function signedCookie(label: string, expiresAt = new Date(Date.now() + 8 *
   });
 }
 
+function csrfToken(html: string): string {
+  const token = /name="csrf_token" value="([^"]+)"/u.exec(html)?.[1];
+  if (!token) throw new Error("sign-out page did not contain a CSRF token");
+  return token;
+}
+
 async function createClient(label: string, scope = "openid profile email") {
   return createTestOAuthClient({
     name: `Lifecycle ${label}`,
@@ -314,7 +320,7 @@ describe("authorization code and session lifecycle", () => {
     expect(central?.id).toBe("lifecycle-session-application-logout");
   });
 
-  it("requires same-origin POST for central sign-out and keeps GET side-effect free", async () => {
+  it("requires same-origin POST and a CSRF token for central sign-out", async () => {
     const cookie = await signedCookie("csrf-logout");
     const signIn = await dispatch(new Request(`${issuer}/sign-in?oauth_query=state-marker`));
     expect(signIn.status).toBe(200);
@@ -331,13 +337,16 @@ describe("authorization code and session lifecycle", () => {
     expect(getResponse.headers.get("content-security-policy")).toBe(
       "default-src 'none'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
     );
+    const signOutCSRF = csrfToken(await getResponse.text());
     const getSession = await env.DB.prepare("SELECT id FROM session WHERE id = ?")
       .bind("lifecycle-session-csrf-logout")
       .first<{ id: string }>();
     expect(getSession?.id).toBe("lifecycle-session-csrf-logout");
-    for (const origin of [undefined, "https://attacker.example"]) {
-      const headers = new Headers({ cookie });
-      if (origin) headers.set("origin", origin);
+    for (const headers of [
+      new Headers({ cookie }),
+      new Headers({ cookie, origin: "https://attacker.example" }),
+      new Headers({ cookie, origin: "null", "sec-fetch-site": "cross-site" }),
+    ]) {
       const response = await dispatch(new Request(`${issuer}/sign-out`, { method: "POST", headers }));
       expect(response.status).toBe(403);
       expect(await response.json()).toEqual({ error: "forbidden" });
@@ -346,13 +355,62 @@ describe("authorization code and session lifecycle", () => {
         .first<{ id: string }>();
       expect(session?.id).toBe("lifecycle-session-csrf-logout");
     }
+    const invalidCSRF = await dispatch(
+      new Request(`${issuer}/sign-out`, {
+        method: "POST",
+        headers: {
+          cookie,
+          origin: "null",
+          "sec-fetch-site": "same-origin",
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({ csrf_token: "invalid" }),
+      }),
+    );
+    expect(invalidCSRF.status).toBe(403);
+    expect(await invalidCSRF.json()).toEqual({ error: "forbidden" });
+    const sessionAfterInvalidCSRF = await env.DB.prepare("SELECT id FROM session WHERE id = ?")
+      .bind("lifecycle-session-csrf-logout")
+      .first<{ id: string }>();
+    expect(sessionAfterInvalidCSRF?.id).toBe("lifecycle-session-csrf-logout");
     const valid = await dispatch(
-      new Request(`${issuer}/sign-out`, { method: "POST", headers: { cookie, origin: issuer } }),
+      new Request(`${issuer}/sign-out`, {
+        method: "POST",
+        headers: {
+          cookie,
+          origin: "null",
+          "sec-fetch-site": "same-origin",
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({ csrf_token: signOutCSRF }),
+      }),
     );
     expect(valid.status).toBe(302);
     const revoked = await env.DB.prepare("SELECT id FROM session WHERE id = ?")
       .bind("lifecycle-session-csrf-logout")
       .first();
     expect(revoked).toBeNull();
+
+    const exactOriginCookie = await signedCookie("csrf-logout-exact-origin");
+    const exactOriginPage = await dispatch(
+      new Request(`${issuer}/sign-out`, { headers: { cookie: exactOriginCookie } }),
+    );
+    const exactOriginCSRF = csrfToken(await exactOriginPage.text());
+    const exactOriginValid = await dispatch(
+      new Request(`${issuer}/sign-out`, {
+        method: "POST",
+        headers: {
+          cookie: exactOriginCookie,
+          origin: issuer,
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({ csrf_token: exactOriginCSRF }),
+      }),
+    );
+    expect(exactOriginValid.status).toBe(302);
+    const exactOriginRevoked = await env.DB.prepare("SELECT id FROM session WHERE id = ?")
+      .bind("lifecycle-session-csrf-logout-exact-origin")
+      .first();
+    expect(exactOriginRevoked).toBeNull();
   });
 });
