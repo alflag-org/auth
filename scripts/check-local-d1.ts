@@ -3,7 +3,7 @@ import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
 const command = [
-  "SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('verification_expiresAt_idx', 'verification_identifier_expiresAt_idx', 'verification_google_state_source_idx', 'verification_google_state_client_idx', 'oauthAuthorizationAdmission_expiresAt_idx', 'oauthAuthorizationAdmission_sourceKey_expiresAt_idx', 'oauthAuthorizationAdmission_clientId_expiresAt_idx', 'oauthAuthorizationAdmission_continuation_idx', 'oauthAccessToken_expiresAt_idx', 'session_expiresAt_idx', 'jwks_expiresAt_idx') ORDER BY name;",
+  "SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('verification_expiresAt_idx', 'verification_identifier_expiresAt_idx', 'verification_google_state_source_idx', 'verification_google_state_client_idx', 'oauthAuthorizationAdmission_expiresAt_idx', 'oauthAuthorizationAdmission_sourceKey_expiresAt_idx', 'oauthAuthorizationAdmission_clientId_expiresAt_idx', 'oauthAuthorizationAdmission_continuation_idx', 'oauthAccessToken_expiresAt_idx', 'session_expiresAt_idx', 'jwks_expiresAt_idx', 'adminAudit_createdAt_idx') ORDER BY name;",
 ].join(" ");
 const persistTo = process.env.D1_PERSIST_TO;
 const child = spawn(
@@ -47,6 +47,7 @@ for (const index of [
   "oauthAccessToken_expiresAt_idx",
   "session_expiresAt_idx",
   "jwks_expiresAt_idx",
+  "adminAudit_createdAt_idx",
 ]) {
   if (!output.includes(index)) throw new Error(`local D1 index is missing: ${index}`);
 }

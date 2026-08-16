@@ -7,6 +7,7 @@ import { registerProtocolRoutes } from "./routes/protocol";
 import { registerUiRoutes } from "./routes/ui";
 import { metadataResponse } from "./metadata";
 import { cleanupExpiredVerification } from "./cleanup";
+import { registerAdminRoutes } from "./admin/clients";
 
 export function createApp(): Hono<AppBindings> {
   const app = new Hono<AppBindings>();
@@ -21,6 +22,7 @@ export function createApp(): Hono<AppBindings> {
 
   registerSecurityMiddleware(app);
   registerUiRoutes(app, resolveAuth);
+  registerAdminRoutes(app, resolveAuth);
   registerLogoutRoutes(app, resolveAuth);
   app.get("/healthz", (context) => context.json({ status: "ok" }));
   app.get("/.well-known/openid-configuration", (context) => metadataResponse(getRuntimeConfig(context.env).issuer));

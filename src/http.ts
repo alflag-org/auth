@@ -34,12 +34,26 @@ export const tokenParameters = [
 export const endSessionParameters = ["id_token_hint", "client_id", "post_logout_redirect_uri", "state"] as const;
 
 export const securityHeaders = {
-  "Content-Security-Policy": "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+  "Content-Security-Policy":
+    "default-src 'none'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
   "Referrer-Policy": "no-referrer",
   "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
 } as const;
 
 export const MAX_FORM_BODY_BYTES = 16_384 as const;
+
+const noStorePaths = new Set([
+  "/",
+  "/sign-in",
+  "/sign-out",
+  "/sign-in/google",
+  "/callback/google",
+  "/oauth2/authorize",
+  "/oauth2/token",
+  "/oauth2/userinfo",
+  "/oauth2/end-session",
+]);
 
 export async function allowRateLimitedRequest(
   request: Request,
@@ -95,19 +109,8 @@ export function registerSecurityMiddleware(app: Hono<AppBindings>): void {
   app.use("*", async (context, next) => {
     await next();
     for (const [name, value] of Object.entries(securityHeaders)) context.header(name, value);
-    if (
-      [
-        "/sign-in",
-        "/sign-out",
-        "/sign-in/google",
-        "/callback/google",
-        "/oauth2/authorize",
-        "/oauth2/token",
-        "/oauth2/userinfo",
-        "/oauth2/end-session",
-      ].includes(context.req.path)
-    ) {
+    const contentType = context.res.headers.get("content-type") ?? "";
+    if (noStorePaths.has(context.req.path) || contentType.toLowerCase().startsWith("text/html"))
       context.header("Cache-Control", "no-store");
-    }
   });
 }

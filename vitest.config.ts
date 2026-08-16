@@ -3,6 +3,7 @@ import { defineConfig } from "vitest/config";
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
 
 process.env.BETTER_AUTH_SECRETS ??= "1:test-schema-secret-1234567890abcdef1234567890abcdef";
+process.env.AUTH_ADMIN_USER_ID ??= "test-admin";
 process.env.GOOGLE_CLIENT_ID ??= "test-google-client";
 process.env.GOOGLE_CLIENT_SECRET ??= "test-google-secret";
 process.env.ALLOWED_GOOGLE_DOMAIN ??= "example.com";
@@ -16,6 +17,7 @@ export default defineConfig({
         compatibilityDate: "2026-08-11",
         bindings: {
           BETTER_AUTH_SECRETS: "1:test-schema-secret-1234567890abcdef1234567890abcdef",
+          AUTH_ADMIN_USER_ID: "test-admin",
           GOOGLE_CLIENT_ID: "test-google-client",
           GOOGLE_CLIENT_SECRET: "test-google-secret",
           ALLOWED_GOOGLE_DOMAIN: "example.com",

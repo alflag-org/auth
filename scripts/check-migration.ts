@@ -4,6 +4,22 @@ import { createAuth, type AuthEnvironment } from "../src/auth";
 import { buildInitialMigration } from "./initial-migration";
 
 const migrationPath = "migrations/0001_initial.sql";
+const adminAuditMigrationPath = "migrations/0002_admin_audit.sql";
+const expectedAdminAuditMigration = [
+  'create table "adminAudit" (',
+  '  "id" text not null primary key,',
+  '  "actorUserId" text not null,',
+  '  "action" text not null,',
+  '  "targetType" text not null,',
+  '  "targetId" text not null,',
+  '  "targetName" text not null,',
+  '  "detail" text not null,',
+  '  "createdAt" date not null',
+  ");",
+  "",
+  'create index "adminAudit_createdAt_idx" on "adminAudit" ("createdAt");',
+  "",
+].join("\n");
 const fakePreparedStatement: D1PreparedStatement = {
   bind: (..._values: unknown[]) => fakePreparedStatement,
   first: async (_column?: string) => {
@@ -46,12 +62,18 @@ const env: AuthEnvironment = {
 };
 
 const migrationFiles = (await readdir("migrations")).filter((name) => name.endsWith(".sql")).sort();
-if (migrationFiles.length !== 1 || migrationFiles[0] !== "0001_initial.sql")
-  throw new Error(`expected only migrations/0001_initial.sql, found: ${migrationFiles.join(", ")}`);
+if (migrationFiles[0] !== "0001_initial.sql" || migrationFiles[1] !== "0002_admin_audit.sql")
+  throw new Error(
+    `expected migrations/0001_initial.sql and migrations/0002_admin_audit.sql first, found: ${migrationFiles.join(", ")}`,
+  );
+
+const adminAuditMigration = await readFile(adminAuditMigrationPath, "utf8");
+if (adminAuditMigration !== expectedAdminAuditMigration)
+  throw new Error(`${adminAuditMigrationPath} is stale or malformed`);
 
 const migrations = await getMigrations(createAuth(env).options);
 const expected = buildInitialMigration(await migrations.compileMigrations());
 const actual = await readFile(migrationPath, "utf8");
 if (expected !== actual)
   throw new Error(`${migrationPath} is stale; run pnpm generate:migration and review the generated diff`);
-console.log("Initial migration is up to date");
+console.log("Baseline migrations are up to date");

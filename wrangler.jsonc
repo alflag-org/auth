@@ -55,7 +55,13 @@
     "crons": ["*/15 * * * *"]
   },
   "secrets": {
-    "required": ["BETTER_AUTH_SECRETS", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "ALLOWED_GOOGLE_DOMAIN"]
+    "required": [
+      "BETTER_AUTH_SECRETS",
+      "AUTH_ADMIN_USER_ID",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "ALLOWED_GOOGLE_DOMAIN"
+    ]
   },
   "vars": {
     "AUTH_ISSUER": "https://auth.example.invalid"

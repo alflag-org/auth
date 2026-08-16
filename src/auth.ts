@@ -16,12 +16,14 @@ import {
 import { verifyGoogleIdentityToken } from "./google";
 
 export type AuthOptions = {
+  adminUserId?: string;
   allowOperatorPrivileges?: boolean;
 };
 
 export type AuthEnvironment = {
   DB: D1Database;
   AUTH_ISSUER: string;
+  AUTH_ADMIN_USER_ID?: string;
   BETTER_AUTH_SECRETS: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
@@ -30,8 +32,9 @@ export type AuthEnvironment = {
 
 export function createAuth(env: AuthEnvironment, googleKeySet?: JWTVerifyGetKey, options: AuthOptions = {}) {
   const config = getRuntimeConfig(env);
+  const adminUserId = options.adminUserId ?? env.AUTH_ADMIN_USER_ID;
   return betterAuth({
-    appName: "Example SSO",
+    appName: config.brand.name,
     baseURL: config.issuer,
     basePath: "/",
     database: env.DB,
@@ -93,7 +96,8 @@ export function createAuth(env: AuthEnvironment, googleKeySet?: JWTVerifyGetKey,
       }),
       oauthProvider({
         clientPrivileges: ({ user }: { user?: User & Record<string, unknown> }) =>
-          options.allowOperatorPrivileges === true && user?.email === "operator@example.invalid",
+          (typeof adminUserId === "string" && adminUserId.length > 0 && user?.id === adminUserId) ||
+          (options.allowOperatorPrivileges === true && user?.id === "local-operator"),
         scopes: [...SCOPES],
         grantTypes: ["authorization_code"],
         codeExpiresIn: AUTHORIZATION_CODE_TTL_SECONDS,

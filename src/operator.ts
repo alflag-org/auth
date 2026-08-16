@@ -84,15 +84,16 @@ async function signSessionCookie(value: string, secret: string): Promise<string>
 async function operatorCookie(env: OperatorEnv): Promise<{ cookie: string; sessionId: string }> {
   const now = new Date();
   const userId = "local-operator";
+  const userEmail = "local-operator@example.invalid";
   const sessionToken = randomString(48);
   const sessionId = randomString(32);
   await env.DB.prepare(
     "INSERT OR IGNORE INTO user (id, name, email, emailVerified, image, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
   )
-    .bind(userId, "Local operator", "operator@example.invalid", 1, null, now.toISOString(), now.toISOString())
+    .bind(userId, "Local operator", userEmail, 1, null, now.toISOString(), now.toISOString())
     .run();
-  const operator = await env.DB.prepare("SELECT id FROM user WHERE email = ? LIMIT 1")
-    .bind("operator@example.invalid")
+  const operator = await env.DB.prepare("SELECT id FROM user WHERE id = ? LIMIT 1")
+    .bind(userId)
     .first<{ id: string }>();
   if (!operator) throw new Error("operator identity could not be created");
   await env.DB.prepare(

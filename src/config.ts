@@ -23,6 +23,11 @@ export const MAX_AUTHORIZATION_NONCE_LENGTH = 256 as const;
 export const MAX_CODE_VERIFIER_LENGTH = 128 as const;
 export const CODE_VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/u;
 
+export type ProductBrand = {
+  name: string;
+  workspaceLabel: string;
+};
+
 const configSchema = z.object({
   AUTH_ISSUER: z.string().min(1),
   BETTER_AUTH_SECRETS: z.string().min(1),
@@ -44,7 +49,22 @@ export type RuntimeConfig = {
   googleClientId: string;
   googleClientSecret: string;
   allowedGoogleDomain: string;
+  brand: ProductBrand;
 };
+
+export function brandForIssuer(issuer: string): ProductBrand {
+  const hostname = new URL(issuer).hostname;
+  const labels = hostname.split(".");
+  const organization = labels[0] === "auth" && labels.length >= 3 ? labels.at(-2) : undefined;
+  if (!organization || organization === "example" || organization === "invalid") {
+    return { name: "Auth", workspaceLabel: "Workspace only" };
+  }
+  const displayOrganization = organization.toUpperCase();
+  return {
+    name: `${displayOrganization} Auth`,
+    workspaceLabel: `${displayOrganization} Workspace only`,
+  };
+}
 
 export function parseIssuer(raw: string): string {
   let url: URL;
@@ -100,11 +120,13 @@ export function getRuntimeConfig(env: {
 }): RuntimeConfig {
   const parsed = configSchema.safeParse(env);
   if (!parsed.success) throw new Error("Required auth configuration is missing or invalid");
+  const issuer = parseIssuer(parsed.data.AUTH_ISSUER);
   return {
-    issuer: parseIssuer(parsed.data.AUTH_ISSUER),
+    issuer,
     secrets: parseVersionedSecrets(parsed.data.BETTER_AUTH_SECRETS),
     googleClientId: parsed.data.GOOGLE_CLIENT_ID,
     googleClientSecret: parsed.data.GOOGLE_CLIENT_SECRET,
     allowedGoogleDomain: parsed.data.ALLOWED_GOOGLE_DOMAIN,
+    brand: brandForIssuer(issuer),
   };
 }

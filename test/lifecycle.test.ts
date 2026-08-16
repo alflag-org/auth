@@ -320,7 +320,7 @@ describe("authorization code and session lifecycle", () => {
     expect(signIn.status).toBe(200);
     expect(signIn.headers.get("cache-control")).toBe("no-store");
     expect(signIn.headers.get("content-security-policy")).toBe(
-      "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+      "default-src 'none'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
     );
     expect(signIn.headers.get("x-content-type-options")).toBe("nosniff");
     expect(signIn.headers.get("referrer-policy")).toBe("no-referrer");
@@ -329,7 +329,7 @@ describe("authorization code and session lifecycle", () => {
     expect(getResponse.headers.get("cache-control")).toBe("no-store");
     expect(getResponse.headers.get("referrer-policy")).toBe("no-referrer");
     expect(getResponse.headers.get("content-security-policy")).toBe(
-      "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+      "default-src 'none'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
     );
     const getSession = await env.DB.prepare("SELECT id FROM session WHERE id = ?")
       .bind("lifecycle-session-csrf-logout")

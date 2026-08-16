@@ -66,7 +66,7 @@ export async function createTestOAuthClient(options: {
   postLogoutRedirectURI?: string;
   scope?: string;
 }) {
-  return createAuth(env, undefined, { allowOperatorPrivileges: true }).api.adminCreateOAuthClient({
+  return createAuth(env, undefined, { adminUserId: "test-operator" }).api.adminCreateOAuthClient({
     headers: await operatorHeaders(options.name),
     body: {
       client_name: options.name,

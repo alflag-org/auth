@@ -584,8 +584,16 @@ function boundedString(value: string, maximum: number): boolean {
 }
 
 export function oauthQueryFromSignIn(request: Request): string | null {
-  const query = new URL(request.url).searchParams;
-  const entries = [...query.entries()].filter(([key]) => key !== "error");
-  if (entries.length === 0) return null;
-  return new URLSearchParams(entries).toString();
+  const rawQuery = new URL(request.url).search.slice(1);
+  if (!rawQuery) return null;
+  const entries = rawQuery.split("&").filter((entry) => {
+    const separator = entry.indexOf("=");
+    const encodedName = separator === -1 ? entry : entry.slice(0, separator);
+    try {
+      return decodeURIComponent(encodedName.replaceAll("+", " ")) !== "error";
+    } catch {
+      return false;
+    }
+  });
+  return entries.length > 0 ? entries.join("&") : null;
 }

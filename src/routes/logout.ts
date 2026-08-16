@@ -4,6 +4,9 @@ import { getRuntimeConfig } from "../config";
 import { KEY_GRACE_TTL_SECONDS } from "../config";
 import type { AppBindings, AuthResolver } from "../http";
 import { allowRateLimitedRequest, endSessionParameters, hasDuplicateParameter } from "../http";
+import { getSession } from "../admin/authz";
+import { createCSRFToken } from "../admin/csrf";
+import { signOutPage } from "../ui/pages";
 
 const MAX_RP_LOGOUT_STATE_LENGTH = 256;
 
@@ -14,11 +17,16 @@ function noStoreResponse(body: BodyInit | null, init: ResponseInit): Response {
 }
 
 export function registerLogoutRoutes(app: Hono<AppBindings>, resolveAuth: AuthResolver): void {
-  app.get("/sign-out", (context) =>
-    context.html(
-      '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Sign out</title></head><body><main><h1>Sign out</h1><form method="post" action="/sign-out"><button type="submit">Sign out</button></form></main></body></html>',
-    ),
-  );
+  app.get("/sign-out", async (context) => {
+    const config = getRuntimeConfig(context.env);
+    const session = await getSession(context.req.raw, resolveAuth(context.env));
+    return context.html(
+      signOutPage({
+        brand: config.brand,
+        csrfToken: session ? await createCSRFToken(session.session.id, context.env) : undefined,
+      }),
+    );
+  });
 
   app.post("/sign-out", async (context) => {
     const issuer = getRuntimeConfig(context.env).issuer;

@@ -44,6 +44,7 @@ const missing = [
   !isValidD1Id(databaseId) || isPlaceholder(databaseId) ? "D1 database_id" : null,
   !validIssuer || issuer?.includes("example.invalid") ? "AUTH_ISSUER" : null,
   !hasValidSecrets(process.env.BETTER_AUTH_SECRETS) ? "BETTER_AUTH_SECRETS" : null,
+  isPlaceholder(process.env.AUTH_ADMIN_USER_ID) ? "AUTH_ADMIN_USER_ID" : null,
   isPlaceholder(process.env.GOOGLE_CLIENT_ID) ? "GOOGLE_CLIENT_ID" : null,
   isPlaceholder(process.env.GOOGLE_CLIENT_SECRET) ? "GOOGLE_CLIENT_SECRET" : null,
   !isProductionGoogleDomain(process.env.ALLOWED_GOOGLE_DOMAIN) ? "ALLOWED_GOOGLE_DOMAIN" : null,

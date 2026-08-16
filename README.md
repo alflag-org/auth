@@ -18,7 +18,7 @@ mise run migrate-local
 mise run dev
 ```
 
-`mise run bootstrap` installs the frozen dependency set and creates `.dev.vars` from `.dev.vars.example` when the file does not exist. It never overwrites an existing `.dev.vars`. Set `AUTH_ISSUER`, `BETTER_AUTH_SECRETS`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `ALLOWED_GOOGLE_DOMAIN` there for local development. `.dev.vars` is ignored and must not be committed; the example values are fictional.
+`mise run bootstrap` installs the frozen dependency set and creates `.dev.vars` from `.dev.vars.example` when the file does not exist. It never overwrites an existing `.dev.vars`. Set `AUTH_ISSUER`, `AUTH_ADMIN_USER_ID`, `BETTER_AUTH_SECRETS`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `ALLOWED_GOOGLE_DOMAIN` there for local development. `AUTH_ADMIN_USER_ID` is the immutable Better Auth user ID allowed to use the management console. `.dev.vars` is ignored and must not be committed; the example values are fictional.
 
 The local Worker uses D1 and listens on Wrangler’s default development address. Local Google integration tests use a fake upstream and do not contact Google. Use `mise run check` for the standard lint, format, type, and test checks, and `mise run build` for both dry-run Worker bundles.
 
@@ -58,15 +58,23 @@ The local `sub` issued with `openid` is the only application identity key. `name
 
 The provider signs ID tokens with ES256. Signing keys rotate every 90 days, and an old public key remains available for a 30-day grace period.
 
+## Management UI
+
+The main Worker serves the Google sign-in page, account page, and small operator console as server-rendered HTML. The console is available at `/admin` and `/admin/clients`; `/` sends unauthenticated users to `/sign-in`, administrators to `/admin`, and other signed-in users to `/account`. The UI uses one plain CSS stylesheet and no frontend framework or client-side router.
+
+`AUTH_ADMIN_USER_ID` is the only production admin authorization setting. A session is an administrator only when `session.user.id` exactly matches it; email addresses are not authorization keys. Client creation, update, secret rotation, disable, enable, and delete are POST form actions protected by an exact issuer `Origin` check and a session-bound signed CSRF token. The routes call Better Auth’s OAuth client APIs and do not update `oauthClient` directly.
+
+Client secrets are shown only in the successful create or rotate response. They are not shown by list or detail pages and are not written to the audit table. The latest ten client management actions appear on `/admin`. Apply `migrations/0002_admin_audit.sql` before using the console against an existing D1 database.
+
 ## Database migrations
 
-The repository has one `0001_initial.sql` migration. It contains the Better Auth schema, authorization-admission capacity tracking, JWK revocation state, Google continuation linkage, and the required expiry and admission indexes. `mise run generate-migration` rebuilds it from Better Auth's generated schema and the project schema composer; `mise run migration-check` rejects drift or additional SQL migration files. Review the initial schema before applying it to shared D1. After it has been applied, keep it immutable and add a new migration for later schema changes.
+The repository has two migrations. `0001_initial.sql` contains the Better Auth schema, authorization-admission capacity tracking, JWK revocation state, Google continuation linkage, and the required expiry and admission indexes. `0002_admin_audit.sql` adds the small management-action audit table. `mise run generate-migration` rebuilds only the initial migration from Better Auth's generated schema and the project schema composer; `mise run migration-check` verifies those baseline migrations. Review migrations before applying them to shared D1. After a migration has been applied, keep it immutable and add a new migration for later schema changes.
 
 ## Client registration
 
-Client registration is an operator action. The route is available only on the local or remote operator Worker; it is not on the production router.
+First-party client registration is available through the main Worker management UI. The local or remote operator Worker remains available for bootstrap and automation; its route is not on the production router.
 
-Before any command, supply `BETTER_AUTH_SECRETS`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ALLOWED_GOOGLE_DOMAIN`, and `AUTH_ISSUER` from the shell or a secret manager through the process environment. Remote operation also requires Wrangler authentication for the intended Cloudflare account, such as `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, plus the explicit account and D1 database IDs shown below. The operator checks that the main and operator Wrangler configurations have matching D1 bindings and includes that target in both confirmations.
+Before any command, supply `BETTER_AUTH_SECRETS`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ALLOWED_GOOGLE_DOMAIN`, and `AUTH_ISSUER` from the shell or a secret manager through the process environment. The main Worker also requires `AUTH_ADMIN_USER_ID` for the management UI. Remote operation also requires Wrangler authentication for the intended Cloudflare account, such as `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, plus the explicit account and D1 database IDs shown below. The operator checks that the main and operator Wrangler configurations have matching D1 bindings and includes that target in both confirmations.
 
 For local D1:
 
@@ -102,6 +110,7 @@ The command writes a temporary env file with mode `0600`, passes only an allowli
 The repository does not create Cloudflare resources, D1 databases, Rate Limiting namespaces, DNS records, secrets, or deployments. Before production work, replace the placeholder D1 ID and namespace IDs for all five rate-limit bindings in the Wrangler configuration, set the required secrets, and set the real HTTPS issuer:
 
 - `BETTER_AUTH_SECRETS`
+- `AUTH_ADMIN_USER_ID`
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `ALLOWED_GOOGLE_DOMAIN`

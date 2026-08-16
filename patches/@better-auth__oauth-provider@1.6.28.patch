@@ -1,7 +1,24 @@
 diff --git a/dist/index.mjs b/dist/index.mjs
-index 0dba7b53799e4f663853b1f5bb8c89ab1c7eccef..e472152890d13608bebde7792b91081fa2d8b858 100644
+index 0dba7b53799e4f663853b1f5bb8c89ab1c7eccef..21bacd4a5ba47214567d3661e1849d0e8af69551 100644
 --- a/dist/index.mjs
 +++ b/dist/index.mjs
+@@ -2043,1 +2043,1 @@
+-			post_logout_redirect_uris: z.array(SafeUrlSchema).min(1).optional(),
++			post_logout_redirect_uris: z.array(SafeUrlSchema).optional(),
+@@ -2058,0 +2058,1 @@
++			disabled: z.boolean().optional(),
 @@ -4061,1 +4061,1 @@
 -	const exp = Math.floor(issuedAt / 1e3) + (opts.codeExpiresIn ?? 600);
 +	const exp = Math.floor(issuedAt / 1e3) + (opts.loginCodeExpiresIn ?? opts.codeExpiresIn ?? 600);
+diff --git a/dist/oauth-C5Ss3rSz.d.mts b/dist/oauth-C5Ss3rSz.d.mts
+index f07310953a80d35c1667eb20cec5ae923940929b..6e798e7f61007f4637d97f211abde56668902e9f 100644
+--- a/dist/oauth-C5Ss3rSz.d.mts
++++ b/dist/oauth-C5Ss3rSz.d.mts
+@@ -1512,6 +1512,7 @@ declare const oauthProvider: <O extends OAuthOptions<Scope[]>>(options: O) => {
+           client_secret_expires_at: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
+           skip_consent: z.ZodOptional<z.ZodBoolean>;
+           enable_end_session: z.ZodOptional<z.ZodBoolean>;
++          disabled: z.ZodOptional<z.ZodBoolean>;
+           metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+         }, z.core.$strip>;
+       }, z.core.$strip>;

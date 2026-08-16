@@ -2,22 +2,49 @@ import type { Hono } from "hono";
 import { getRuntimeConfig } from "../config";
 import { completeGoogleLogin, oauthQueryFromSignIn, startGoogleLogin } from "../google";
 import type { AppBindings, AuthResolver } from "../http";
+import { createCSRFToken } from "../admin/csrf";
+import { getSession, requireSession, uiUser } from "../admin/authz";
+import { accountPage, signInPage } from "../ui/pages";
+import { appStyles } from "../ui/styles";
 
 export function registerUiRoutes(app: Hono<AppBindings>, resolveAuth: AuthResolver): void {
-  app.get("/", (context) =>
-    context.html(
-      '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Example SSO</title></head><body><h1>Example SSO</h1><p>Google Workspace sign-in for first-party applications.</p><p><a href="/sign-in">Sign in</a></p></body></html>',
-    ),
+  app.get("/", async (context) => {
+    const session = await getSession(context.req.raw, resolveAuth(context.env));
+    if (!session) return context.redirect("/sign-in", 302);
+    return context.redirect(session.user.id === context.env.AUTH_ADMIN_USER_ID ? "/admin" : "/account", 302);
+  });
+
+  app.get(
+    "/assets/app.css",
+    () =>
+      new Response(appStyles, {
+        headers: {
+          "Cache-Control": "public, max-age=3600",
+          "Content-Type": "text/css; charset=UTF-8",
+        },
+      }),
   );
 
   app.get("/sign-in", (context) => {
+    const config = getRuntimeConfig(context.env);
     const query = oauthQueryFromSignIn(context.req.raw);
-    const issuer = getRuntimeConfig(context.env).issuer;
-    const href = new URL("/sign-in/google", issuer);
+    const href = new URL("/sign-in/google", config.issuer);
     if (query) href.searchParams.set("oauth_query", query);
-    const error = context.req.query("error") ? '<p role="alert">Sign-in failed. Try again.</p>' : "";
     return context.html(
-      `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Sign in</title></head><body><main><h1>Sign in</h1>${error}<p>Workspace accounts only</p><p><a href="${href.toString()}">Continue with Google</a></p></main></body></html>`,
+      signInPage({
+        brand: config.brand,
+        googleHref: href.toString(),
+        error: context.req.query("error") !== undefined,
+      }),
+    );
+  });
+
+  app.get("/account", async (context) => {
+    const result = await requireSession(context.req.raw, resolveAuth(context.env));
+    if (result instanceof Response) return result;
+    const config = getRuntimeConfig(context.env);
+    return context.html(
+      accountPage(uiUser(result), config.brand, await createCSRFToken(result.session.id, context.env)),
     );
   });
 
